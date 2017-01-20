@@ -11,15 +11,14 @@ namespace VRTK
     /// Placed on each individual lever. This script has two use cases. It allows the player to grab the levers (because it inherits from VRTK_InteractableObject) and it also manages everything to 
     /// do with calculating the value the lever has selected
     /// </summary>
-     [ExecuteInEditMode]
+    [ExecuteInEditMode]
     public class RotationPrinter : VRTK_InteractableObject
     {
         Vector3 angle; //angle the lever is at. 0-360 degrees.
 
-        string missionValue = ""; //Mission is a string rather than enum because its easier and quicker to just compare the name to the name in build settings
+        Mission missionValue; //Mission is a string rather than enum because its easier and quicker to just compare the name to the name in build settings
 
-        [SerializeField]
-        GameControlls gameControlls; //Reference to the GameController script. Only used by the GAME START podium (the one with "GO").
+        public PodiumManager podiumManager; //Reference to the GameController script. Only used by the GAME START podium (the one with "GO").
 
         public enum LEVERTYPE //Different podiumns will control different things. Eg one for the level select, one for difficulty select etc
         {
@@ -33,11 +32,11 @@ namespace VRTK
         [HideInInspector]
         public enum DIFFICULTY
         {
-            LIGHTWEIGHT,
-            EASY,
-            MEDIUM,
-            HARD,
-            DEATH_LIKELY
+            LIGHTWEIGHT = 0,
+            EASY = 1,
+            MEDIUM = 2,
+            HARD = 3,
+            DEATH_LIKELY = 4
         };
 
         [HideInInspector]
@@ -46,11 +45,11 @@ namespace VRTK
         [HideInInspector]
         public enum GAME_MODE
         {
-            STORY,
-            DLC,
-            BRING_A_FRIEND,
-            SMASHING_FUN,
-            SEEK_AND_DESTROY
+            STORY = 0,
+            DLC = 1,
+            BRING_A_FRIEND = 2,
+            SMASHING_FUN = 3,
+            SEEK_AND_DESTROY = 4
         };
 
         [HideInInspector]
@@ -93,7 +92,24 @@ namespace VRTK
         Vector3 defaultNone = new Vector3(0.8f, 180, 180);
         #endregion
 
+        List<Mission> missionList = new List<Mission>();
+
         #region levelNames string values
+        Mission trafalgarSquare = new Mission("", false);
+        Mission eastenders = new Mission("", false);
+        Mission nightOnTheTown;
+        Mission thePalace;
+        Mission rattwurmMansion;
+        Mission streetsOfLondon;
+        Mission skillingtonArms;
+        Mission theTower;
+        Mission theSewers;
+        Mission limeHouseWarehouse;
+        //  Mission london = new Mission("london", false);
+        #endregion
+
+
+        /**
         string trafalgarSquare = "TrafalgarSquare";
         string eastenders = "Eastenders";
         string nightOnTheTown = "NightOnTheTown";
@@ -101,11 +117,11 @@ namespace VRTK
         string rattwurmMansion = "RattwurmsMansion";
         string streetsOfLondon = "StreetsOfLondon";
         string skillingtonArms = "SkillingtonArms";
-        string theTower = "TheTower";
+        string theTower = "Tower_of_London";
         string theSewers = "TheSewers";
         string limeHouseWarehouse = "LimehouseWarehouse";
         string london = "StreetsOfLondon"; //This is the section that says "Bellingers Telegraph". I just set this default to StreetsOfLondon.
-        #endregion
+    */
 
         public LEVERTYPE leverType;
 
@@ -121,16 +137,44 @@ namespace VRTK
         private GAME_START_MODE gameStartMode;
 
         bool levelLoadAttempted = false; //Once the player puts the final lever in the "GO" position, that counts as an attempt to load the level
-
+        AudioSource audioSource;
 
         // Use this for initialization
         void Start()
         {
+
             if (leverType != LEVERTYPE.GAME_START)
             {
                 SetLeverValue(); //Get initial values from the levers at the start of teh scene in case the player doesnt move any before starting the game
             }
-           
+            audioSource = GetComponent<AudioSource>();
+
+        }
+
+        /// <summary>
+        /// Gets the MissionList from the gameController and updates the podiums mission variables with the values from the gameController list
+        /// </summary>
+        void GetMissionListFromGameController()
+        {
+            StartCoroutine(WaitUntilListIsNotEmpty());
+        }
+
+        IEnumerator WaitUntilListIsNotEmpty()
+        {
+            yield return new WaitUntil(podiumManager.MissionListNotEmpty);
+            trafalgarSquare = podiumManager.ReturnMission("TrafalgarSquare");
+            eastenders = podiumManager.ReturnMission("Eastenders");
+            nightOnTheTown = podiumManager.ReturnMission("NightOnTheTown");
+            thePalace = podiumManager.ReturnMission("ThePalace");
+            rattwurmMansion = podiumManager.ReturnMission("RattwurmsMansion");
+            streetsOfLondon = podiumManager.ReturnMission("StreetsOfLondon");
+            skillingtonArms = podiumManager.ReturnMission("SkillingtonArms");
+            theTower = podiumManager.ReturnMission("Tower_of_London");
+            theSewers = podiumManager.ReturnMission("TheSewers");
+            limeHouseWarehouse = podiumManager.ReturnMission("LimehouseWarehouse");
+            // london = podiumManager.ReturnMission("StreetsOfLondon");
+
+            SelectMission();
         }
 
         /// <summary>
@@ -150,7 +194,7 @@ namespace VRTK
                     break;
 
                 case LEVERTYPE.MISSION:
-                    SelectMission();
+                    GetMissionListFromGameController();
                     break;
 
                 case LEVERTYPE.GAME_START:
@@ -158,6 +202,7 @@ namespace VRTK
                     break;
             }
         }
+
 
         /// <summary>
         /// Overrides the VRTK Ungrabbed function. We also stop the levers velocity (to prevent drift), and call the SETLEVERVALUE function.
@@ -202,7 +247,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 200.0)
                     {
-                        difficulty = DIFFICULTY.DEATH_LIKELY;
+                        // difficulty = DIFFICULTY.DEATH_LIKELY;
+                        difficulty = DIFFICULTY.HARD;
                     }
                 }
 
@@ -210,7 +256,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        difficulty = DIFFICULTY.DEATH_LIKELY; //This is when the lever is on the "Bellinger Telegraph" part.  Its closer to DEATH LIKELY than LIGHTWEIGHT so I just set it to DEATH LIKELY
+                        // difficulty = DIFFICULTY.DEATH_LIKELY; //This is when the lever is on the "Bellinger Telegraph" part.  Its closer to DEATH LIKELY than LIGHTWEIGHT so I just set it to DEATH LIKELY
+                        difficulty = DIFFICULTY.HARD;
                     }
                 }
 
@@ -218,7 +265,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        difficulty = DIFFICULTY.LIGHTWEIGHT; //This is when the lever is on the "Bellinger Telegraph" part. Its closer to LIGHTWEIGHT than DEATH LIKELY so I just set it to LIGHTWEIGHT
+                        // difficulty = DIFFICULTY.LIGHTWEIGHT; //This is when the lever is on the "Bellinger Telegraph" part. Its closer to LIGHTWEIGHT than DEATH LIKELY so I just set it to LIGHTWEIGHT
+                        difficulty = DIFFICULTY.EASY;
                     }
                 }
 
@@ -226,7 +274,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        difficulty = DIFFICULTY.LIGHTWEIGHT;
+                        // difficulty = DIFFICULTY.LIGHTWEIGHT;
+                        difficulty = DIFFICULTY.EASY;
                     }
                 }
 
@@ -262,7 +311,7 @@ namespace VRTK
                     }
                 }
                 DifficultySnapToCentre(difficulty);
-               // Debug.Log("diff val  " + transform.localRotation.eulerAngles);
+                // Debug.Log("diff val  " + transform.localRotation.eulerAngles);
             }
         }
 
@@ -279,7 +328,8 @@ namespace VRTK
                 {
                     if (angle.y >= -15.0 && angle.y <= 15.0)
                     {
-                        gameMode = GAME_MODE.DLC;
+                        //gameMode = GAME_MODE.DLC;
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
 
@@ -287,7 +337,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameMode = GAME_MODE.DLC;
+                        //gameMode = GAME_MODE.DLC;
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
                 #endregion
@@ -296,7 +347,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameMode = GAME_MODE.BRING_A_FRIEND;
+                        //gameMode = GAME_MODE.BRING_A_FRIEND;
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
 
@@ -304,7 +356,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameMode = GAME_MODE.BRING_A_FRIEND; //This is the section that says "Bellingers Telegraph". Its closer to BRINGAFRIEND than to SMASHINGFUN so I set it to BRINGAFRIEND
+                        //gameMode = GAME_MODE.BRING_A_FRIEND; //This is the section that says "Bellingers Telegraph". Its closer to BRINGAFRIEND than to SMASHINGFUN so I set it to BRINGAFRIEND
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
 
@@ -312,7 +365,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameMode = GAME_MODE.SMASHING_FUN; //This is the section that says "Bellingers Telegraph". Its closer to SMASHING_FUN than BRINGAFRIEND so I set it to SMASHINGFUN
+                        //gameMode = GAME_MODE.SMASHING_FUN; //This is the section that says "Bellingers Telegraph". Its closer to SMASHING_FUN than BRINGAFRIEND so I set it to SMASHINGFUN
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
 
@@ -320,7 +374,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameMode = GAME_MODE.SMASHING_FUN;
+                        //gameMode = GAME_MODE.SMASHING_FUN;
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
 
@@ -328,7 +383,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameMode = GAME_MODE.SEEK_AND_DESTROY;
+                        //gameMode = GAME_MODE.SEEK_AND_DESTROY;
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
 
@@ -336,7 +392,8 @@ namespace VRTK
                 {
                     if (angle.y >= -15.0 && angle.y <= 15.0)
                     {
-                        gameMode = GAME_MODE.SEEK_AND_DESTROY;
+                        //gameMode = GAME_MODE.SEEK_AND_DESTROY;
+                        gameMode = GAME_MODE.STORY;
                     }
                 }
 
@@ -373,6 +430,7 @@ namespace VRTK
                     if (angle.y >= -15.0 && angle.y <= 15.0)
                     {
                         missionValue = trafalgarSquare;
+
                     }
                 }
 
@@ -420,7 +478,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        missionValue = london;
+                        //   missionValue = london; //HERE IT IS ON THE BELLINGER PART OF THE MISSION PODIUM
+                        missionValue = rattwurmMansion;
                     }
                 }
 
@@ -428,7 +487,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        missionValue = london;
+                        // missionValue = london; //HERE IT IS ON THE BELLINGER PART OF THE MISSION PODIUM
+                        missionValue = streetsOfLondon;
                     }
                 }
 
@@ -480,11 +540,12 @@ namespace VRTK
                     }
                 }
 
-                MissionSnapToCentre(missionValue);
-
-                // Debug.Log("miss val  " + transform.localRotation.eulerAngles);
-
-                //  Debug.Log("Mission is " + missionValue);
+                ///CHECKER
+                if (!podiumManager.CheckIsCurrentMissionUnlocked()) //Only try load level if the level is unlocked
+                {
+                    missionValue = streetsOfLondon;
+                }
+                MissionSnapToCentre(missionValue.missionName);
             }
         }
 
@@ -500,7 +561,17 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameStartMode = GAME_START_MODE.INTO_BATTLE;
+                        //gameStartMode = GAME_START_MODE.INTO_BATTLE;
+                        if (podiumManager.CheckIsCurrentMissionUnlocked()) //Only try load level if the level is unlocked
+                        {
+                            gameStartMode = GAME_START_MODE.GO;
+                            Invoke("AttemptToLoadLevel", 0.5f);
+                        }
+                        else
+                        {
+                            gameStartMode = GAME_START_MODE.STOP;
+                        }
+
                     }
                 }
 
@@ -508,7 +579,16 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameStartMode = GAME_START_MODE.NONE; //This is the section that says "Bellingers Telegraph". 
+                        //gameStartMode = GAME_START_MODE.NONE; //This is the section that says "Bellingers Telegraph".                         
+                        if (podiumManager.CheckIsCurrentMissionUnlocked()) //Only try load level if the level is unlocked
+                        {
+                            gameStartMode = GAME_START_MODE.GO;
+                            Invoke("AttemptToLoadLevel", 0.5f);
+                        }
+                        else
+                        {
+                            gameStartMode = GAME_START_MODE.STOP;
+                        }
                     }
                 }
 
@@ -516,7 +596,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameStartMode = GAME_START_MODE.NONE;//This is the section that says "Bellingers Telegraph". 
+                        // gameStartMode = GAME_START_MODE.NONE;//This is the section that says "Bellingers Telegraph".                         
+                        gameStartMode = GAME_START_MODE.STOP;
                     }
                 }
 
@@ -524,7 +605,8 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameStartMode = GAME_START_MODE.SABATICAL_MODE;
+                        // gameStartMode = GAME_START_MODE.SABATICAL_MODE;
+                        gameStartMode = GAME_START_MODE.STOP;
                     }
                 }
 
@@ -548,8 +630,16 @@ namespace VRTK
                 {
                     if (angle.y >= -15.0 && angle.y <= 15.0)
                     {
-                        gameStartMode = GAME_START_MODE.GO;
-                          AttemptToLoadLevel();
+                        if (podiumManager.CheckIsCurrentMissionUnlocked()) //Only try load level if the level is unlocked
+                        {
+                            gameStartMode = GAME_START_MODE.GO;
+                            Invoke("AttemptToLoadLevel", 0.5f);
+                        }
+                        else
+                        {
+                            gameStartMode = GAME_START_MODE.STOP;
+                        }
+
                     }
                 }
 
@@ -557,8 +647,15 @@ namespace VRTK
                 {
                     if (angle.y >= -15.0 && angle.y <= 15.0)
                     {
-                        gameStartMode = GAME_START_MODE.GO;
-                         AttemptToLoadLevel();
+                        if (podiumManager.CheckIsCurrentMissionUnlocked()) //Only try load level if the level is unlocked
+                        {
+                            gameStartMode = GAME_START_MODE.GO;
+                            Invoke("AttemptToLoadLevel", 0.5f);
+                        }
+                        else
+                        {
+                            gameStartMode = GAME_START_MODE.STOP;
+                        }
                     }
                 }
 
@@ -566,11 +663,18 @@ namespace VRTK
                 {
                     if (angle.y >= 160.0 && angle.y <= 195.0)
                     {
-                        gameStartMode = GAME_START_MODE.GO;
-                         AttemptToLoadLevel();
+                        if (podiumManager.CheckIsCurrentMissionUnlocked()) //Only try load level if the level is unlocked
+                        {
+                            gameStartMode = GAME_START_MODE.GO;
+                            Invoke("AttemptToLoadLevel", 0.5f);
+                        }
+                        else
+                        {
+                            gameStartMode = GAME_START_MODE.STOP;
+                        }
+
                     }
                 }
-
                 GameStartSnapToCentre(gameStartMode);
 
             }
@@ -584,7 +688,7 @@ namespace VRTK
             if (!levelLoadAttempted)
             {
                 levelLoadAttempted = true;
-                gameControlls.LoadLevelBasedOnLeverValues();
+                podiumManager.LoadLevelBasedOnLeverValues();
             }
         }
 
@@ -619,6 +723,11 @@ namespace VRTK
                     break;
             }
             transform.localRotation = q;
+            if (audioSource != null)
+            {
+                audioSource.Play();
+            }
+            //   podiumManager.SendDifficultyToGameController();
         }
 
         /// <summary>
@@ -645,8 +754,16 @@ namespace VRTK
                 case GAME_MODE.SEEK_AND_DESTROY:
                     q.eulerAngles = defaultSeekAndDestroy;
                     break;
+
+                case GAME_MODE.BRING_A_FRIEND:
+                    q.eulerAngles = defaultBringAFriend;
+                    break;
             }
             transform.localRotation = q;
+            if (audioSource != null)
+            {
+                audioSource.Play();
+            }
         }
 
         void GameStartSnapToCentre(GAME_START_MODE gameStartMode)
@@ -672,6 +789,11 @@ namespace VRTK
             }
 
             transform.localRotation = q;
+            if (audioSource != null)
+            {
+                audioSource.Play();
+            }
+            // podiumManager.SendGameModeToGameController();
         }
 
         /// <summary>
@@ -711,7 +833,7 @@ namespace VRTK
                     q.eulerAngles = defaultSkillingtonArms;
                     break;
 
-                case "TheTower":
+                case "Tower_of_London":
                     q.eulerAngles = defaultTheTower;
                     break;
 
@@ -725,11 +847,21 @@ namespace VRTK
             }
 
             transform.localRotation = q;
+            if (audioSource != null)
+            {
+                audioSource.Play();
+            }
+            // podiumManager.SendCurrentMissionToGameController();
         }
 
 
         /// <summary>
-        /// Retunrs the difficulty
+        /// Retunrs the difficulty. Difficulty is an enum but the enums have values
+        /// lightweight = 0
+        /// easy = 1
+        /// medium = 2
+        /// hard = 3
+        /// death likely = 4
         /// </summary>
         /// <returns></returns>
         public DIFFICULTY ReturnDifficulty()
@@ -737,16 +869,40 @@ namespace VRTK
             return difficulty;
 
         }
+
+        /// <summary>
+        /// Returns the game mode. GameMode is an enum but has been assigned int values
+        ///  LIGHTWEIGHT = 0,
+        /// EASY = 1,
+        ///MEDIUM = 2,
+        ///HARD = 3,
+        ///DEATH_LIKELY = 4
+        /// </summary>
+        /// <returns></returns>
         public GAME_MODE ReturnGameMode()
         {
             return gameMode;
 
         }
 
+        /// <summary>
+        /// Returns the string name of the current mission
+        /// </summary>
+        /// <returns></returns>
         public string ReturnMission()
         {
-            return missionValue;
+            return missionValue.missionName;
 
         }
+
+        /// <summary>
+        /// Returns the mission object for the currently selected mission
+        /// </summary>
+        /// <returns></returns>
+        public Mission ReturnCurrentMissionObject()
+        {
+            return missionValue;
+        }
+
     }
 }
