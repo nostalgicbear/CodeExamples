@@ -22,8 +22,6 @@ public class GameControlls : MonoBehaviour
     SteamVR_TrackedObject[] trackedObjs;
     private const string fileName = "data.gl";
     private string filePath;
-    private SteamScript steamScript;
-
 
     [HideInInspector]
     bool introVideoPlayed = false; //Set to true once the intro video has been played
@@ -136,8 +134,10 @@ public class GameControlls : MonoBehaviour
                 Instance = this;
                 Load();
             }
-            
-            InitializeSteamSctipt();            
+
+
+
+            //LoadGameLevelFromFile();
             InitializeWeaponValues(); //Creates a dictionary for eaach weapon and its MK value. That way the GC ALWAYS has a dictionary of weapons and their value. 
             PopulateMissionList(); //Populates the list of missions once the scene is initially opened. That way it ALWAYS creates a list of missions and whether they are unlocked or not
         }
@@ -149,21 +149,13 @@ public class GameControlls : MonoBehaviour
     }
 
 
-    private void InitializeSteamSctipt()
-    {
-        steamScript = GetComponent<SteamScript>();
-    }
-
-    public void UnlockSteamAchievement(string name)
-    {
-        steamScript.UnlockSteamAchievement(name);
-    }
 
 
     /// <summary>
     /// Delegate called each time a level is loaded. If the scene is the blimp scene, the missionList is recalculated to update the unlocked levels 
     /// </summary>
-
+    /// 
+    
     public void TryToSave()
     {
         try
@@ -494,7 +486,6 @@ public class GameControlls : MonoBehaviour
                 missionList[6].unlocked = true;
                 theTower.unlocked = true;
                 missionList[7].unlocked = true;
-
                 break;
 
             case "SkillingtonArms": //Nothing is unlocked when we complete this level. 
@@ -505,7 +496,6 @@ public class GameControlls : MonoBehaviour
             case "Tower_of_London": //When this is completed no other level is unlocked in the early access version
                 theTower.levelCompleted = true;
                 missionList[7].levelCompleted = true;
-                UnlockSteamAchievement(SteamAchievementsNames.CROWN_JEWELS);
                 break;
 
             case "TheSewers":
